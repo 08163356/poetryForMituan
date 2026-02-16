@@ -103,30 +103,82 @@ npm run dev
 - 已安装 Nginx 且配置好 SSL
 - Node.js >= 18
 
-### 步骤 1: 注册 MongoDB Atlas（免费云数据库）
+### 步骤 1: 安装 MongoDB（二选一）
 
-由于服务器没有安装 MongoDB，我们使用免费的 MongoDB Atlas 云数据库：
+#### 方式 A: 服务器自建 MongoDB（推荐）
+
+数据完全掌控在自己手上，连接更快更稳定：
+
+```bash
+# 导入 MongoDB GPG 密钥
+curl -fsSL https://www.mongodb.org/static/pgp/server-7.0.asc | sudo gpg -o /usr/share/keyrings/mongodb-server-7.0.gpg --dearmor
+
+# 添加 MongoDB 源（Ubuntu 22.04）
+echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+
+# 如果是 Ubuntu 20.04，使用：
+# echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+
+# 更新并安装
+sudo apt update
+sudo apt install -y mongodb-org
+
+# 启动并设置开机自启
+sudo systemctl start mongod
+sudo systemctl enable mongod
+
+# 验证安装
+sudo systemctl status mongod
+mongosh --eval "db.version()"
+```
+
+环境变量配置（使用本地连接）：
+```
+MONGODB_URI=mongodb://localhost:27017/poetry_family
+```
+
+#### 方式 B: 使用 MongoDB Atlas 云数据库
+
+如果不想在服务器安装 MongoDB，可以使用免费的云数据库：
 
 1. 访问 [MongoDB Atlas](https://www.mongodb.com/cloud/atlas/register) 注册账号
 2. 创建免费的 M0 集群（512MB，永久免费）
 3. 设置数据库用户名和密码
 4. 在 Network Access 中添加服务器 IP（或允许所有 IP: `0.0.0.0/0`）
-5. 获取连接字符串，格式如下：
+5. 获取连接字符串：
    ```
    mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/poetry_family?retryWrites=true&w=majority
    ```
 
-### 步骤 2: 导出本地数据（可选）
+### 步骤 2: 导出本地数据到服务器（可选）
 
-如果本地已有数据，需要导出并导入到 Atlas：
+如果本地已有数据，需要同步到服务器：
+
+**方式一：使用 mongodump/mongorestore（推荐）**
 
 ```bash
-# 在本地执行
-cd backend
-npm run export-data
+# 在本地 Windows 导出（需要安装 MongoDB Database Tools）
+# 下载：https://www.mongodb.com/try/download/database-tools
+mongodump --uri="mongodb://localhost:27017/poetry_family" --out=./dump
+
+# 将 dump 文件夹上传到服务器（使用 scp 或其他方式）
+scp -r ./dump user@your-server:/tmp/
+
+# 在服务器导入
+mongorestore --uri="mongodb://localhost:27017/poetry_family" /tmp/dump/poetry_family
 ```
 
-这会在 `backend/data-export/` 目录生成 JSON 文件，按照目录中的 README 说明导入到 Atlas。
+**方式二：使用 JSON 导出脚本**
+
+```bash
+# 在本地导出为 JSON
+cd backend
+npm run export-data
+
+# 上传 data-export 目录到服务器后，用 mongoimport 导入
+mongoimport --db poetry_family --collection users --file users.json --jsonArray
+mongoimport --db poetry_family --collection poetries --file poetries.json --jsonArray
+```
 
 ### 步骤 3: 服务器部署
 
@@ -341,12 +393,17 @@ poetryForMituan/
 
 ## ❓ 常见问题
 
-### Q: MongoDB Atlas 连接超时？
+### Q: MongoDB 连接失败？
 
-确保：
-1. Atlas 的 Network Access 已添加服务器 IP
-2. 连接字符串格式正确
-3. 用户名密码正确
+**自建 MongoDB：**
+1. 检查 MongoDB 是否运行：`sudo systemctl status mongod`
+2. 如果未运行：`sudo systemctl start mongod`
+3. 检查端口：`netstat -tlnp | grep 27017`
+
+**MongoDB Atlas：**
+1. 检查 Network Access 是否添加了服务器 IP
+2. 确认连接字符串格式正确
+3. 确认用户名密码正确
 
 ### Q: 上传图片失败？
 
