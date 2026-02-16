@@ -1,0 +1,16 @@
+{
+  "name": "poetry-backend",
+  "version": "1.0.0",
+  "description": "古诗网站后端服务",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "seed": "ts-node src/scripts/seed.ts",
+    "export-data": "ts-node src/scripts/export-data.ts"
+  },
+  "keywords": ["poetry", "chinese", "family"],
+  "author": "",
+  "license": "ISC"
+}

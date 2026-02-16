@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  # MongoDB 数据库
+  mongodb:
+    image: mongo:6
+    container_name: poetry-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: poetry_family
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - poetry-network
+
+  # 后端服务
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: poetry-backend
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb:27017/poetry_family
+      - JWT_SECRET=${JWT_SECRET:-poetry-family-secret-key-2024}
+      - AI_VERIFY_API_KEY=${AI_VERIFY_API_KEY:-}
+      - AI_IMAGE_API_KEY=${AI_IMAGE_API_KEY:-}
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      - mongodb
+    networks:
+      - poetry-network
+
+  # 前端服务（Nginx）
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: poetry-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - poetry-network
+
+volumes:
+  mongodb_data:
+  uploads_data:
+
+networks:
+  poetry-network:
+    driver: bridge
