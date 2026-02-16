@@ -180,49 +180,70 @@ mongoimport --db poetry_family --collection users --file users.json --jsonArray
 mongoimport --db poetry_family --collection poetries --file poetries.json --jsonArray
 ```
 
-### 步骤 3: 服务器部署
+### 步骤 3: 部署项目（两种方式）
 
-**方式一：自动部署脚本**
+#### 方式 A: 本地构建打包部署（推荐，节省服务器内存）
+
+在本地 Windows 构建，打包后上传到服务器解压即可：
+
+```powershell
+# 1. 在本地 Windows PowerShell 执行构建打包
+cd g:\axingSpace\family\poetry-family-website
+.\scripts\build-and-pack.ps1
+```
+
+这会生成 `poetry-dist-时间戳.zip` 文件，然后：
+
+```bash
+# 2. 上传到服务器
+scp poetry-dist-*.zip user@your-server:/tmp/
+
+# 3. SSH 到服务器解压并安装
+ssh user@your-server
+cd /tmp
+unzip poetry-dist-*.zip -d poetry-dist
+cd poetry-dist
+sudo bash install.sh
+```
+
+#### 方式 B: 服务器直接构建（需要较多内存）
 
 ```bash
 # SSH 到服务器
 ssh user@your-server
 
-# 下载并运行部署脚本
-curl -fsSL https://raw.githubusercontent.com/08163356/poetryForMituan/main/deploy/deploy.sh -o deploy.sh
-sudo bash deploy.sh
-```
-
-**方式二：手动部署**
-
-```bash
-# 1. 创建目录
-sudo mkdir -p /var/www/poetry
-sudo mkdir -p /var/log/poetry
-
-# 2. 克隆代码
+# 克隆代码
 sudo git clone https://github.com/08163356/poetryForMituan.git /var/www/poetry
 
-# 3. 构建后端
+# 构建后端（需要约 1GB 内存）
 cd /var/www/poetry/backend
 sudo npm install --production=false
 sudo npm run build
 
-# 4. 配置环境变量
-sudo cp .env.production.example .env
-sudo nano .env  # 编辑 MongoDB 连接字符串
-
-# 5. 构建前端
+# 构建前端（需要约 1GB 内存）
 cd /var/www/poetry/frontend
 sudo npm install
 sudo npm run build
 
-# 6. 设置权限
+# 设置权限
 sudo chown -R www-data:www-data /var/www/poetry
+sudo mkdir -p /var/log/poetry
 sudo chown -R www-data:www-data /var/log/poetry
 ```
 
-### 步骤 4: 配置 Systemctl 服务
+### 步骤 4: 配置环境变量
+
+```bash
+# 如果使用方式 A（本地打包），.env 已从 .env.example 复制
+# 如果使用方式 B（服务器构建），需要手动复制
+sudo cp /var/www/poetry/backend/.env.example /var/www/poetry/backend/.env
+
+# 编辑配置
+sudo nano /var/www/poetry/backend/.env
+# 确认 MONGODB_URI 配置正确
+```
+
+### 步骤 5: 配置 Systemctl 服务
 
 ```bash
 # 复制服务文件
@@ -239,7 +260,7 @@ sudo systemctl start poetry-backend
 sudo systemctl status poetry-backend
 ```
 
-### 步骤 5: 配置 Nginx
+### 步骤 6: 配置 Nginx
 
 编辑你的 Nginx 站点配置文件（如 `/etc/nginx/sites-available/ablog.axingit.top`），在 `server` 块中添加：
 
@@ -288,14 +309,14 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-### 步骤 6: 初始化数据
+### 步骤 7: 初始化数据
 
 ```bash
 cd /var/www/poetry/backend
 sudo -u www-data npm run seed
 ```
 
-### 步骤 7: 验证部署
+### 步骤 8: 验证部署
 
 访问 https://ablog.axingit.top/poetry
 
